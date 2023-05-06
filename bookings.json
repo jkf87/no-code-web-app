@@ -1,0 +1,38 @@
+const fs = require('fs');
+
+const filePath = 'bookings.json';
+
+// 예약 데이터 저장하기
+function saveBooking(date, period, formData) {
+  fs.readFile(filePath, 'utf8', (err, data) => {
+    if (err) {
+      console.error(err);
+      return;
+    }
+    const bookings = JSON.parse(data) || {};
+    if (!bookings[date]) {
+      bookings[date] = {};
+    }
+    bookings[date][period] = formData;
+    fs.writeFile(filePath, JSON.stringify(bookings), (err) => {
+      if (err) {
+        console.error(err);
+      }
+    });
+  });
+}
+
+// 예약 데이터 불러오기
+function loadBookings() {
+  return new Promise((resolve, reject) => {
+    fs.readFile(filePath, 'utf8', (err, data) => {
+      if (err) {
+        console.error(err);
+        reject(err);
+        return;
+      }
+      const bookings = JSON.parse(data) || {};
+      resolve(bookings);
+    });
+  });
+}
