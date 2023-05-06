@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.10.7/dayjs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.10.7/plugin/isoWeek.min.js"></script>
+  <title>Room Reservation</title>
+</head>
+<body class="bg-gray-100">
+  <div id="app" class="container mx-auto px-4 py-10">
+    <div class="text-xl font-semibold mb-6">School Room Reservation System</div>
+    <div id="calendar"></div>
+    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div id="booking">
+        <h2 class="text-lg font-semibold mb-2">Booking</h2>
+        <div id="bookingDetails"></div>
+      </div>
+      <div id="bookers">
+        <h2 class="text-lg font-semibold mb-2">List of Bookers</h2>
+        <div id="bookersList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    dayjs.extend(dayjs_plugin_isoWeek);
+
+    (() => {
+      const app = document.getElementById("app");
+
+      const calendarContainer = document.getElementById("calendar");
+      const bookingDetailsContainer = document.getElementById("bookingDetails");
+      const bookersListContainer = document.getElementById("bookersList");
+
+      let currentMonth = dayjs();
+
+      function getBookings() {
+        return JSON.parse(localStorage.getItem("bookings")) || {};
+      }
+
+      function saveBooking(date, period, formData) {
+        const bookings = getBookings();
+        bookings[date] = {
+          ...bookings[date],
+          [period]: formData
+        };
+        localStorage.setItem("bookings", JSON.stringify(bookings));
+      }
+
+      function deleteBooking(date, period) {
+        const bookings = getBookings();
+        delete bookings[date][period];
+        localStorage.setItem("bookings", JSON.stringify(bookings));
+      }
+
+      function createCalendar() {
+        calendarContainer.innerHTML = "";
+        
+        const header = document.createElement("h2");
+        header.innerText = `Calendar (${currentMonth.format("MMMM, YYYY")})`;
+        header.classList.add("text-lg", "font-semibold", "mb-2", "text-center");
+        calendarContainer.appendChild(header);
+
+        const navContainer = document.createElement("div");
+        navContainer.classList.add("flex", "justify-center", "mb-4");
+        const prevButton = document.createElement("button");
+        prevButton.innerText = "←";
+        prevButton.classList.add("bg-white", "rounded", "mr-2", "px-4", "py-1");
+        prevButton.onclick = () => {
+          currentMonth = currentMonth.subtract(1, "month");
+          createCalendar();
+        };
+        navContainer.appendChild(prevButton);
+
+        const nextButton = document.createElement("button");
+        nextButton.innerText = "→";
+        nextButton.classList.add("bg-white", "rounded", "ml-2", "px-4", "py-1");
+        nextButton.onclick = () => {
+          currentMonth = currentMonth.add(1, "month");
+          createCalendar();
+        };
+        navContainer.appendChild(nextButton);
+        calendarContainer.appendChild(navContainer);
+
+        for (let week = 0; week < 5; week++) {
+          const weekContainer = document.createElement("div");
+          weekContainer.classList.add("grid", "grid-cols-7", "gap-2", "mb-2");
+          for (let day = 0; day < 7; day++) {
+            const curDate = currentMonth.startOf("month").add(day + week * 7, "day");
+            const dayContainer = document.createElement("div");
+            dayContainer.classList.add("p-2", "bg-white", "rounded");
+            dayContainer.onclick = () => {
+              displayBookingDetails(curDate);
+            };
+            if (curDate.month() === currentMonth.month()) {
+              const dayInfo = document.createElement("div");
+              dayInfo.innerText = curDate.format("D");
+              dayContainer.appendChild(dayInfo);
+
+              const periodsIndicator = document.createElement("div");
+              periodsIndicator.classList.add("text-xs", "mt-1");
+              const bookings = getBookings();
+              const dateBookings = bookings[curDate.format("YYYY-MM-DD")] || {};
+
+              for (let period = 1; period <= 6; period++) {
+                const periodIndicator = document.createElement("span");
+                periodIndicator.innerText = period;
+                periodIndicator.classList.add("inline-block", "w-4", "h-4", "rounded-full", "text-center", "mr-1");
+
+                if (dateBookings[period]) {
+                  periodIndicator.classList.add("bg-red-500", "text-white");
+                } else {
+                  periodIndicator.classList.add("bg-green-500", "text-white");
+                }
+
+                periodsIndicator.appendChild(periodIndicator);
+              }
+
+              dayContainer.appendChild(periodsIndicator);
+
+              if (curDate.day() === 6) {
+                dayContainer.classList.add("bg-blue-200");
+              } else if (curDate.day() === 0) {
+                dayContainer.classList.add("bg-red-200");
+              }
+            }
+            weekContainer.appendChild(dayContainer);
+          }
+          calendarContainer.appendChild(weekContainer);
+        }
+      }
+
+      function displayBookingDetails(date) {
+        bookingDetailsContainer.innerHTML = "";
+        const heading = document.createElement("h3");
+        heading.innerText = date.format("MMMM D, YYYY");
+        heading.classList.add("font-semibold", "mb-2");
+        bookingDetailsContainer.appendChild(heading);
+
+        const periodsContainer = document.createElement("div");
+        periodsContainer.classList.add("grid", "grid-cols-3", "gap-2");
+
+        for (let period = 1; period <= 6; period++) {
+          const periodContainer = document.createElement("div");
+          periodContainer.classList.add("p-2", "bg-white", "rounded", "text-center", "cursor-pointer");
+          periodContainer.innerHTML = `Period ${period}`;
+
+          const bookings = getBookings();
+          const booking = bookings[date.format("YYYY-MM-DD")]?.[period];
+
+          if (booking) {
+            periodContainer.classList.add("bg-red-500", "text-white");
+            periodContainer.onclick = async () => {
+              const checkPassword = prompt("Enter booking password to cancel:");
+              if (checkPassword === booking.password) {
+                deleteBooking(date.format("YYYY-MM-DD"), period);
+                displayBookingDetails(date);
+                displayBookers();
+              } else {
+                alert("Incorrect password. Unable to cancel booking.");
+              }
+            };
+          } else {
+            periodContainer.onclick = async () => {
+              const name = prompt("Enter your name:");
+              if (!name) return;
+
+              const password = prompt("Enter a 4-digit password:");
+              if (!password || password.length !== 4) {
+                alert("Invalid password.");
+                return;
+              }
+
+              saveBooking(date.format("YYYY-MM-DD"), period, { name, password });
+              displayBookingDetails(date);
+              displayBookers();
+            };
+          }
+
+          periodsContainer.appendChild(periodContainer);
+        }
+        bookingDetailsContainer.appendChild(periodsContainer);
+      }
+
+      function displayBookers() {
+        bookersListContainer.innerHTML = "";
+        const bookings = getBookings();
+        const dates = Object.keys(bookings).sort();
+
+        for (const date of dates) {
+          const dateObj = dayjs(date);
+          const dateHeading = document.createElement("h4");
+          dateHeading.innerText = dateObj.format("MMMM D, YYYY");
+          dateHeading.classList.add("font-semibold", "mb-1");
+          bookersListContainer.appendChild(dateHeading);
+
+          const dayBookings = [];
+          for (let period = 1; period <= 6; period++) {
+            const booking = bookings[date]?.[period];
+            if (booking) {
+              dayBookings.push(`Period ${period}: ${booking.name}`);
+            }
+          }
+
+          const bookingsList = document.createElement("div");
+          bookingsList.innerHTML = dayBookings.join(", ");
+          bookersListContainer.appendChild(bookingsList);
+
+          const separator = document.createElement("hr");
+          separator.classList.add("my-2");
+          bookersListContainer.appendChild(separator);
+        }
+      }
+
+      createCalendar();
+    })();
+  </script>
+</body>
+</html>
