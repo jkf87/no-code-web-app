@@ -25,6 +25,9 @@
   </div>
 
   <script>
+      const fs = require('fs');
+      const path = require('path');
+
     dayjs.extend(dayjs_plugin_isoWeek);
 
     (() => {
@@ -37,23 +40,40 @@
       let currentMonth = dayjs();
 
       function getBookings() {
-        return JSON.parse(localStorage.getItem("bookings")) || {};
-      }
+          const filePath = path.join(__dirname, 'bookings.json');
+          try {
+            const data = fs.readFileSync(filePath, 'utf8');
+            return JSON.parse(data) || {};
+          } catch (err) {
+            console.error(err);
+            return {};
+          }
+        }
 
-      function saveBooking(date, period, formData) {
-        const bookings = getBookings();
-        bookings[date] = {
-          ...bookings[date],
-          [period]: formData
-        };
-        localStorage.setItem("bookings", JSON.stringify(bookings));
-      }
+        function saveBooking(date, period, formData) {
+          const filePath = path.join(__dirname, 'bookings.json');
+          const bookings = getBookings();
+          if (!bookings[date]) {
+            bookings[date] = {};
+          }
+          bookings[date][period] = formData;
+          try {
+            fs.writeFileSync(filePath, JSON.stringify(bookings));
+          } catch (err) {
+            console.error(err);
+          }
+        }
 
-      function deleteBooking(date, period) {
-        const bookings = getBookings();
-        delete bookings[date][period];
-        localStorage.setItem("bookings", JSON.stringify(bookings));
-      }
+        function deleteBooking(date, period) {
+          const filePath = path.join(__dirname, 'bookings.json');
+          const bookings = getBookings();
+          delete bookings[date][period];
+          try {
+            fs.writeFileSync(filePath, JSON.stringify(bookings));
+          } catch (err) {
+            console.error(err);
+          }
+        }
 
       function createCalendar() {
         calendarContainer.innerHTML = "";
@@ -73,6 +93,7 @@
           createCalendar();
         };
         navContainer.appendChild(prevButton);
+      
 
         const nextButton = document.createElement("button");
         nextButton.innerText = "→";
@@ -185,34 +206,34 @@
       }
 
       function displayBookers() {
-        bookersListContainer.innerHTML = "";
-        const bookings = getBookings();
-        const dates = Object.keys(bookings).sort();
+      const bookingData = fs.readFileSync("bookings.json");
+      const bookings = JSON.parse(bookingData);
+      const dates = Object.keys(bookings).sort();
 
-        for (const date of dates) {
-          const dateObj = dayjs(date);
-          const dateHeading = document.createElement("h4");
-          dateHeading.innerText = dateObj.format("MMMM D, YYYY");
-          dateHeading.classList.add("font-semibold", "mb-1");
-          bookersListContainer.appendChild(dateHeading);
+      for (const date of dates) {
+        const dateObj = dayjs(date);
+        const dateHeading = document.createElement("h4");
+        dateHeading.innerText = dateObj.format("MMMM D, YYYY");
+        dateHeading.classList.add("font-semibold", "mb-1");
+        bookersListContainer.appendChild(dateHeading);
 
-          const dayBookings = [];
-          for (let period = 1; period <= 6; period++) {
-            const booking = bookings[date]?.[period];
-            if (booking) {
-              dayBookings.push(`Period ${period}: ${booking.name}`);
-            }
+        const dayBookings = [];
+        for (let period = 1; period <= 6; period++) {
+          const booking = bookings[date]?.[period];
+          if (booking) {
+            dayBookings.push(`Period ${period}: ${booking.name}`);
           }
-
-          const bookingsList = document.createElement("div");
-          bookingsList.innerHTML = dayBookings.join(", ");
-          bookersListContainer.appendChild(bookingsList);
-
-          const separator = document.createElement("hr");
-          separator.classList.add("my-2");
-          bookersListContainer.appendChild(separator);
         }
+
+        const bookingsList = document.createElement("div");
+        bookingsList.innerHTML = dayBookings.join(", ");
+        bookersListContainer.appendChild(bookingsList);
+
+        const separator = document.createElement("hr");
+        separator.classList.add("my-2");
+        bookersListContainer.appendChild(separator);
       }
+    }
 
       createCalendar();
     })();
